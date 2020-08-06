@@ -8,6 +8,7 @@ require('dotenv').config({
 const ChipChat = require('chipchat');
 const log = require('debug')('tourguide')
 const get = require('lodash/get');
+const getQuote = require('./sheets')
 const incrementor = {
     // This function adds delay to the message to ensure the messages are posted in the right order
     autoDelayTime: 500,
@@ -25,33 +26,35 @@ const errorCatch = (error) => {
     log(error);
 }
 
-const depositQuote = async () => {
-    let quote = (Math.floor((Math.random() * 100)))
-    let conversation
-    const oldConvFinder = await bot.conversations.list({ name:'Need for inspiration?', participants:{ user: userId } })
-    if (oldConvFinder.length > 0) {
-        conversation = oldConvFinder[0]
-        await bot.send(conversation.id, [
-            {
-                text: quote,
-                isBackchannel: false,
-                role: 'bot',
-                delay: incrementor.set(3)
-            }
-        ])
-    } else {
-        conversation = await bot.conversations.create(
-            { name: 'Need some inspiration?', messages: [{ text: `Hey there. I couldn't find a conversation to drop your quote in. So i made a new one. Here's your quote.` }] }
-        )
-        await bot.send(conversation.id, [
-            {
-                text: quote,
-                isBackchannel: false,
-                role: 'bot',
-                delay: incrementor.set(3)
-            }
-        ])
-    }
+const depositQuote = async (userId) => {
+    try {
+        let quote = getQuote.findQuote()
+        let conversation
+        const oldConvFinder = await bot.conversations.list({ name:'Daily Quotes', participants:{ user: userId } })
+        if (oldConvFinder.length > 0) {
+            conversation = oldConvFinder[0]
+            await bot.send(conversation.id, [
+                {
+                    text: quote,
+                    isBackchannel: false,
+                    role: 'bot',
+                    delay: incrementor.set(3)
+                }
+            ])
+        } else {
+            conversation = await bot.conversations.create(
+                { name: 'Need some inspiration?', messages: [{ text: `Hey there. I couldn't find a conversation to drop your quote in. So i made a new one. Here's your quote.` }] }
+            )
+            await bot.send(conversation.id, [
+                {
+                    text: quote,
+                    isBackchannel: false,
+                    role: 'bot',
+                    delay: incrementor.set(3)
+                }
+            ])
+        }
+    } catch (e) { errorCatch(e) }
 }
 
 // Create a new bot instance
@@ -84,27 +87,12 @@ bot.on('user.login', async (loginUser) => {
             if (user.role == 'agent') {
                 if (userId) {
                     let conversation
-                    const oldConvFinder = await bot.conversations.list({ name:'Need for inspiration?', participants:{ user: userId } })
+                    const oldConvFinder = await bot.conversations.list({ name:'Daily Quotes', participants:{ user: userId } })
                     if (oldConvFinder.length > 0) {
                         conversation = oldConvFinder[0]
-                        await bot.send(conversation.id, [
-                            {
-                                text: `Hey there. Zen Chip here.`,
-                                isBackchannel: false,
-                                role: 'bot',
-                                delay: incrementor.set(3),
-                                actions: [
-                                    {
-                                        type: "reply",
-                                        text: "Continue",
-                                        payload: "userReturned"
-                                    }
-                                ]
-                            }
-                        ])
                     } else {
                         conversation = await bot.conversations.create(
-                            { name: 'Need some inspiration?', messages: [{ text: `Hey there. Zen Chip here.` }] }
+                            { name: 'Daily Quotes', messages: [{ text: `Hey there. Zen Chip here.` }] }
                         )
                     }
                     await bot.send(conversation.id, [
@@ -155,8 +143,7 @@ bot.on('user.login', async (loginUser) => {
                 log(`User is not an agent. Role is : ${user.role}`)
             }
         } else if (hasSubscribed === "true") {
-            depositQuote()
-
+            await depositQuote(userId)
         }
     } catch (e){
         errorCatch(e)
@@ -172,7 +159,7 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
                     text: `Great, i'll be back with a new quote tomorrow.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'true' }})
@@ -182,7 +169,7 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
                     text: `Ok, i won't bother you again. If you change your mind you can activate me with the >zen command.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'disabled' }})
@@ -192,7 +179,7 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
                     text: `Alright then, see you tomorrow.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'true' }})
@@ -202,27 +189,28 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
                     text: `Alright then. I won't bother you anymore.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'disabled' }})
         } else if (message.text == "StartQuotes") {
             await bot.send(conversation.id, [
                 {
-                    text: `Alright then, I'll see you tomorrow.`,
+                    text: `Alright then, here is today's quote.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'true' }})
+            await depositQuote(userId)
         } else if (message.text == "KeepQuotesOff") {
             await bot.send(conversation.id, [
                 {
                     text: `Alright then, call me when you want to get daily quotes.`,
                     isBackchannel: false,
                     role: 'bot',
-                    delay: incrementor.increment(3)
+                    delay: incrementor.set(3)
                 }
             ])
             await bot.users.update(userId, { meta: { subscribedToQuotes: 'disabled' }})
@@ -230,10 +218,10 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
     } catch (e) { errorCatch(e) }
 });
 
-bot.on('message.create.agent.command', (message, conversation) => {
+bot.on('message.create.bot.command', (message, conversation) => {
     if (message.type === 'command' && message.text === ">zen") {
         const userId = message.user
-        bot.users.get(userId).then((user) => {i
+        bot.users.get(userId).then((user) => {
             const userPreference = get(user, 'meta.subscribedToQuotes', 'false')
             if (userPreference === 'true') {
                 conversation.say([
