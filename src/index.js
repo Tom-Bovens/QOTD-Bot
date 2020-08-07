@@ -28,7 +28,7 @@ const errorCatch = (error) => {
 
 const depositQuote = async (userId) => {
     try {
-        let quote = getQuote.findQuote()
+        let quote = await getQuote()
         let conversation
         const oldConvFinder = await bot.conversations.list({ name:'Daily Quotes', participants:{ user: userId } })
         if (oldConvFinder.length > 0) {
@@ -59,6 +59,7 @@ const depositQuote = async (userId) => {
 
 // Create a new bot instance
 const bot = new ChipChat({
+    webhook: '/webhook',
     host: process.env.HOST,
     token: process.env.TOKEN
 });
