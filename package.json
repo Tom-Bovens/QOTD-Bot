@@ -7,6 +7,8 @@
     "chipchat": "^0.1.8",
     "debug": "^4.1.1",
     "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "google-spreadsheet": "^3.0.13",
     "lodash": "^4.17.19"
   },
   "devDependencies": {

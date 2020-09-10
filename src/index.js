@@ -5,6 +5,7 @@ const envfile = `${process.cwd()}${path.sep}.env`;
 require('dotenv').config({
     path: envfile
 });
+const express = require('express')
 const ChipChat = require('chipchat');
 const log = require('debug')('tourguide')
 const get = require('lodash/get');
@@ -43,8 +44,19 @@ const depositQuote = async (userId) => {
             ])
         } else {
             conversation = await bot.conversations.create(
-                { name: 'Need some inspiration?', messages: [{ text: `Hey there. I couldn't find a conversation to drop your quote in. So i made a new one. Here's your quote.` }] }
+                { name: 'Daily Quotes', messages: [{ text: `Hey there. I couldn't find a conversation to drop your quote in. So i made a new one. Here's your quote.` }] }
             )
+            await bot.send(conversation.id, [
+                {
+                    type: 'command',
+                    text: '/assign',
+                    meta: {
+                        "users": [
+                            userId
+                        ]
+                    }
+                },
+            ])
             await bot.send(conversation.id, [
                 {
                     text: quote,
@@ -140,8 +152,6 @@ bot.on('user.login', async (loginUser) => {
                         }
                     ])
                 }
-            } else {
-                log(`User is not an agent. Role is : ${user.role}`)
             }
         } else if (hasSubscribed === "true") {
             await depositQuote(userId)
@@ -151,7 +161,7 @@ bot.on('user.login', async (loginUser) => {
     }
 });
 
-bot.on('message.create.bot.postback.agent', async (message, conversation) => {
+bot.on('message.create.*.postback.*', async (message, conversation) => {
     try {
         const userId = message.user
         if (message.text == "userAccepted") {
@@ -167,7 +177,7 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
         } else if (message.text == "userDenied") {
             await bot.send(conversation.id, [
                 {
-                    text: `Ok, i won't bother you again. If you change your mind you can activate me with the >zen command.`,
+                    text: `Ok, i won't bother you again. If you change your mind then call me.`,
                     isBackchannel: false,
                     role: 'bot',
                     delay: incrementor.set(3)
@@ -219,11 +229,13 @@ bot.on('message.create.bot.postback.agent', async (message, conversation) => {
     } catch (e) { errorCatch(e) }
 });
 
-bot.on('message.create.bot.command', (message, conversation) => {
-    if (message.type === 'command' && message.text === ">zen") {
+bot.on('message.create.*.command', (message, conversation) => {
+    log(message.text)
+    if (message.type === 'command' && message.text === "/assign") {
+        log("Hey")
         const userId = message.user
         bot.users.get(userId).then((user) => {
-            const userPreference = get(user, 'meta.subscribedToQuotes', 'false')
+            const userPreference = get(user, 'meta.subscribedToQuotes', 'disabled')
             if (userPreference === 'true') {
                 conversation.say([
                     {
@@ -281,4 +293,14 @@ bot.on('message.create.bot.command', (message, conversation) => {
 
 
 // Start Express.js webhook server to start listening
-bot.start();
+bot.start()
+/*
+const app = express()
+app.use("/bot", bot.router())
+app.use("/google", (req, res) => {
+    log(req.body)
+    res.status(200).end()
+})
+
+app.listen()
+    */
