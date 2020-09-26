@@ -11,18 +11,14 @@
     "google-spreadsheet": "^3.0.13",
     "lodash": "^4.17.19"
   },
-  "devDependencies": {
-    "eslint-plugin-node": "^11.1.0"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint",
+    "lint": "../node_modules/.bin/eslint --rulesdir .. ./src",
     "dev": "DEBUG=*,-express:router nodemon --watch ./src ./src/index.js"
   },
   "keywords": [
     "bot",
-    "chatshipper",
-    "tourguide"
+    "chatshipper"
   ],
   "author": "Tom Bovens <tombovens2003@gmail.com>",
   "license": "ISC"
